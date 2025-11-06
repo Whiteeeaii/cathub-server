@@ -105,6 +105,7 @@ class LocationHelper(private val context: Context) {
     
     /**
      * 根据经纬度获取地址名称
+     * 格式：市、区、路、具体地点（从大到小）
      */
     private fun getLocationName(latitude: Double, longitude: Double): String {
         return try {
@@ -112,21 +113,21 @@ class LocationHelper(private val context: Context) {
             if (!addresses.isNullOrEmpty()) {
                 val address = addresses[0]
                 buildString {
-                    // 优先使用详细地址
-                    address.featureName?.let { append(it) }
-                    address.thoroughfare?.let {
+                    // 按照从大到小的顺序：市、区、路、具体地点
+                    address.locality?.let { append(it) }  // 市
+                    address.subLocality?.let {  // 区
                         if (isNotEmpty()) append(", ")
                         append(it)
                     }
-                    address.subLocality?.let {
+                    address.thoroughfare?.let {  // 路
                         if (isNotEmpty()) append(", ")
                         append(it)
                     }
-                    address.locality?.let {
+                    address.featureName?.let {  // 具体地点
                         if (isNotEmpty()) append(", ")
                         append(it)
                     }
-                    
+
                     // 如果没有详细地址，使用城市和国家
                     if (isEmpty()) {
                         address.locality?.let { append(it) }

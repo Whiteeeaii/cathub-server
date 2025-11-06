@@ -139,7 +139,7 @@ fun EventsFeed(
                 .padding(16.dp)
         ) {
             Text(
-                text = "最新事件",
+                text = "事件",
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(bottom = 12.dp)
             )

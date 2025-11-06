@@ -71,11 +71,6 @@ fun ReportScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "上报猫咪健康状况",
-                style = MaterialTheme.typography.titleMedium
-            )
-
             // 选择猫咪
             ExposedDropdownMenuBox(
                 expanded = showCatDropdown,
@@ -117,22 +112,32 @@ fun ReportScreen(
                 FilterChip(
                     selected = selectedType == "injury",
                     onClick = { selectedType = "injury" },
-                    label = { Text("受伤") }
+                    label = { Text("受伤") },
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = selectedType == "injury",
+                        borderWidth = if (selectedType == "injury") 2.dp else 1.dp
+                    )
                 )
                 FilterChip(
                     selected = selectedType == "sick",
                     onClick = { selectedType = "sick" },
-                    label = { Text("生病") }
-                )
-                FilterChip(
-                    selected = selectedType == "neutered",
-                    onClick = { selectedType = "neutered" },
-                    label = { Text("已绝育") }
+                    label = { Text("生病") },
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = selectedType == "sick",
+                        borderWidth = if (selectedType == "sick") 2.dp else 1.dp
+                    )
                 )
                 FilterChip(
                     selected = selectedType == "other",
                     onClick = { selectedType = "other" },
-                    label = { Text("其他") }
+                    label = { Text("其他") },
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = selectedType == "other",
+                        borderWidth = if (selectedType == "other") 2.dp else 1.dp
+                    )
                 )
             }
 
@@ -146,17 +151,32 @@ fun ReportScreen(
                     FilterChip(
                         selected = selectedSeverity == "low",
                         onClick = { selectedSeverity = "low" },
-                        label = { Text("轻微") }
+                        label = { Text("轻微") },
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedSeverity == "low",
+                            borderWidth = if (selectedSeverity == "low") 2.dp else 1.dp
+                        )
                     )
                     FilterChip(
                         selected = selectedSeverity == "medium",
                         onClick = { selectedSeverity = "medium" },
-                        label = { Text("中等") }
+                        label = { Text("中等") },
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedSeverity == "medium",
+                            borderWidth = if (selectedSeverity == "medium") 2.dp else 1.dp
+                        )
                     )
                     FilterChip(
                         selected = selectedSeverity == "high",
                         onClick = { selectedSeverity = "high" },
-                        label = { Text("严重") }
+                        label = { Text("严重") },
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedSeverity == "high",
+                            borderWidth = if (selectedSeverity == "high") 2.dp else 1.dp
+                        )
                     )
                 }
             }

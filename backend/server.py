@@ -786,24 +786,40 @@ def create_health_report():
     conn.close()
 
     # 创建事件
-    report_type = data.get('type', '健康问题')
-    severity = data.get('severity', '未知')
+    # 将英文类型转换为中文
+    type_mapping = {
+        'injury': '受伤',
+        'sick': '生病',
+        'neutered': '已绝育',
+        'other': '其他'
+    }
+    report_type = type_mapping.get(data.get('type', 'other'), '其他')
+    severity = data.get('severity')
 
-    # 根据严重程度生成标题
-    if severity == 'critical':
-        severity_text = '紧急'
-    elif severity == 'serious':
-        severity_text = '严重'
-    elif severity == 'moderate':
-        severity_text = '中度'
+    # 根据严重程度生成标题（只在有严重程度时才添加）
+    if severity:
+        if severity == 'low':
+            severity_text = '轻微'
+        elif severity == 'medium':
+            severity_text = '中等'
+        elif severity == 'high':
+            severity_text = '严重'
+        else:
+            severity_text = None
+
+        if severity_text:
+            title = f"{cat_name} {report_type}（{severity_text}）"
+        else:
+            title = f"{cat_name} {report_type}"
     else:
-        severity_text = '轻微'
+        # 没有严重程度选项时，不添加括号
+        title = f"{cat_name} {report_type}"
 
     create_event(
         event_type='health_report',
         cat_id=data.get('cat_id'),
         cat_name=cat_name,
-        title=f"{cat_name} {report_type}（{severity_text}）",
+        title=title,
         description=data.get('note', ''),
         location=data.get('location'),
         latitude=data.get('latitude'),

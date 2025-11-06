@@ -234,17 +234,32 @@ fun AddCatScreen(
                 FilterChip(
                     selected = sex == "male",
                     onClick = { sex = "male" },
-                    label = { Text("公猫") }
+                    label = { Text("公猫") },
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = sex == "male",
+                        borderWidth = if (sex == "male") 2.dp else 1.dp
+                    )
                 )
                 FilterChip(
                     selected = sex == "female",
                     onClick = { sex = "female" },
-                    label = { Text("母猫") }
+                    label = { Text("母猫") },
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = sex == "female",
+                        borderWidth = if (sex == "female") 2.dp else 1.dp
+                    )
                 )
                 FilterChip(
                     selected = sex == "unknown",
                     onClick = { sex = "unknown" },
-                    label = { Text("未知") }
+                    label = { Text("未知") },
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = sex == "unknown",
+                        borderWidth = if (sex == "unknown") 2.dp else 1.dp
+                    )
                 )
             }
             
