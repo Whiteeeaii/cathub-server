@@ -441,6 +441,16 @@ def create_cat():
         conn.commit()
         conn.close()
 
+        # 创建事件：新猫咪加入档案
+        cat_name = data.get('name', '未命名')
+        create_event(
+            event_type='new_cat',
+            cat_id=cat_id,
+            cat_name=cat_name,
+            title=f"新的猫咪：{cat_name} 加入档案",
+            description=f"猫咪档案已创建"
+        )
+
         print(f"✅ 猫咪创建成功，ID: {cat_id}")
         return jsonify({"id": cat_id, "message": "Cat created successfully"}), 201
     except Exception as e:

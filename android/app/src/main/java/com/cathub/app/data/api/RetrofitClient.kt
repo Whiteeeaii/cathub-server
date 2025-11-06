@@ -11,10 +11,10 @@ import java.util.concurrent.TimeUnit
  */
 object RetrofitClient {
     
-    // Zeabur 云端服务器地址（香港节点）
+    // Zeabur 云端服务器地址（上海节点 - 华为云）
     // 本地测试: http://10.0.2.2:5000/ (模拟器) 或 http://192.168.x.x:5000/ (真机)
     // Render: https://cathub.onrender.com/
-    // Zeabur: https://cathub.preview.huawei-zeabur.cn/
+    // Zeabur: https://cathub.preview.huawei-zeabur.cn/ (上海 → 杭州 5-10ms 延迟)
     private const val BASE_URL = "https://cathub.preview.huawei-zeabur.cn/"
     
     private val loggingInterceptor = HttpLoggingInterceptor().apply {

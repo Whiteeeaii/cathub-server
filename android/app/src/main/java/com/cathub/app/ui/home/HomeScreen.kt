@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -74,44 +75,46 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 事件栏
+            // 事件栏 - 占据屏幕 2/5
             EventsFeed(
                 events = events,
                 isLoading = isLoading,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(2f)
             )
 
-            // 功能按钮区域
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // 功能按钮区域 - 占据屏幕 3/5
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(3f)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // 识别按钮
-                CompactHomeCard(
+                WideHomeCard(
                     icon = Icons.Outlined.CameraAlt,
                     title = "识别",
                     onClick = onNavigateToRecognition,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 // 上报按钮
-                CompactHomeCard(
+                WideHomeCard(
                     icon = Icons.Outlined.Report,
                     title = "上报",
                     onClick = onNavigateToReport,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                // 档案按钮
-                CompactHomeCard(
-                    icon = Icons.Outlined.Pets,
+                // 档案按钮 - 使用猫爪图标
+                WideHomeCard(
+                    icon = painterResource(id = R.drawable.ic_paw),
                     title = "档案",
                     onClick = onNavigateToProfile,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -128,7 +131,7 @@ fun EventsFeed(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(280.dp),
+        modifier = modifier,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -188,6 +191,7 @@ fun EventItem(event: Event) {
     val icon = when (event.eventType) {
         "sighting" -> Icons.Outlined.LocationOn
         "health_report" -> Icons.Outlined.Report
+        "new_cat" -> Icons.Outlined.Pets
         else -> Icons.Outlined.Pets
     }
 
@@ -228,7 +232,87 @@ fun EventItem(event: Event) {
 }
 
 /**
- * 压缩版主页卡片组件
+ * 长条形主页卡片组件（使用 ImageVector）
+ */
+@Composable
+fun WideHomeCard(
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedCard(
+        onClick = onClick,
+        modifier = modifier.height(80.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                modifier = Modifier.size(36.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
+    }
+}
+
+/**
+ * 长条形主页卡片组件（使用 Painter）
+ */
+@Composable
+fun WideHomeCard(
+    icon: Painter,
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedCard(
+        onClick = onClick,
+        modifier = modifier.height(80.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = icon,
+                contentDescription = title,
+                modifier = Modifier.size(36.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
+    }
+}
+
+/**
+ * 压缩版主页卡片组件（保留以防其他地方使用）
  */
 @Composable
 fun CompactHomeCard(
