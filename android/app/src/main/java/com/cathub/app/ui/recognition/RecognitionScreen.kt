@@ -301,6 +301,7 @@ private suspend fun recognizeCat(
                 personality = match.personality,
                 foodPreferences = match.food_preferences,
                 feedingTips = match.feeding_tips,
+                notes = match.notes,
                 photos = match.photos,
                 embeddings = emptyList(), // CatMatch 的 embeddings 是 List<String>，Cat 需要 List<Embedding>
                 createdAt = match.created_at,

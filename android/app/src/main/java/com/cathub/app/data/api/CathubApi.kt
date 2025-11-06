@@ -80,6 +80,7 @@ data class CatMatch(
     val personality: List<String>,
     val food_preferences: List<String>,
     val feeding_tips: String?,
+    val notes: String?,
     val photos: List<Photo>,
     val embeddings: List<String>,
     val created_at: Long,
