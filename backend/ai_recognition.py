@@ -111,13 +111,13 @@ def _describe_with_gemini(image_path, prompt):
     print(f"✅ Gemini 特征提取成功: {features.get('overall_description', '')}")
     return features
 
-def _describe_with_qwen(image_path, prompt, max_retries=2):
+def _describe_with_qwen(image_path, prompt, max_retries=3):
     """使用阿里云通义千问描述
 
     Args:
         image_path: 图片路径
         prompt: 提示词
-        max_retries: 最大重试次数（默认 2 次）
+        max_retries: 最大重试次数（默认 3 次）
     """
     from dashscope import MultiModalConversation
     import time
@@ -140,9 +140,9 @@ def _describe_with_qwen(image_path, prompt, max_retries=2):
             start_time = time.time()
 
             response = MultiModalConversation.call(
-                model='qwen3-vl-flash',  # 使用最新最快的 Qwen3 视觉模型
+                model='qwen-vl-plus',  # 使用 qwen-vl-plus（速度和准确度平衡）
                 messages=messages,
-                timeout=60  # 设置 60 秒超时
+                timeout=90  # 增加到 90 秒超时
             )
 
             elapsed = time.time() - start_time
@@ -250,14 +250,14 @@ def _compare_with_gemini(image1_path, image2_path, prompt):
     print(f"✅ Gemini 比较完成: 相似度 {result.get('similarity', 0)}%")
     return result
 
-def _compare_with_qwen(image1_path, image2_path, prompt, max_retries=2):
+def _compare_with_qwen(image1_path, image2_path, prompt, max_retries=3):
     """使用阿里云通义千问比较
 
     Args:
         image1_path: 第一张图片路径
         image2_path: 第二张图片路径
         prompt: 提示词
-        max_retries: 最大重试次数（默认 2 次）
+        max_retries: 最大重试次数（默认 3 次）
     """
     from dashscope import MultiModalConversation
     import time
@@ -281,9 +281,9 @@ def _compare_with_qwen(image1_path, image2_path, prompt, max_retries=2):
             start_time = time.time()
 
             response = MultiModalConversation.call(
-                model='qwen3-vl-flash',  # 使用最新最快的 Qwen3 视觉模型
+                model='qwen-vl-plus',  # 使用 qwen-vl-plus（速度和准确度平衡）
                 messages=messages,
-                timeout=60  # 设置 60 秒超时
+                timeout=90  # 增加到 90 秒超时
             )
 
             elapsed = time.time() - start_time

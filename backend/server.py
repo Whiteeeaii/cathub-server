@@ -161,14 +161,14 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-def save_photo(file, compress=True, max_size=(1920, 1920), quality=85):
+def save_photo(file, compress=True, max_size=(1280, 1280), quality=75):
     """保存上传的照片，返回文件路径
 
     Args:
         file: 上传的文件对象
         compress: 是否压缩图片（默认 True）
-        max_size: 最大尺寸（宽, 高），默认 1920x1920
-        quality: JPEG 质量（1-100），默认 85
+        max_size: 最大尺寸（宽, 高），默认 1280x1280（进一步减小以加快上传）
+        quality: JPEG 质量（1-100），默认 75（降低质量以减小文件大小）
     """
     if file and allowed_file(file.filename):
         filename = f"{int(time.time() * 1000)}_{secure_filename(file.filename)}"
