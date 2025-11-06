@@ -15,6 +15,15 @@ from PIL import Image
 import io
 import hashlib
 
+# 导入 AI 识别模块
+try:
+    from ai_recognition import is_ai_available, recognize_cat_from_database, describe_cat_features
+    AI_ENABLED = is_ai_available()
+    print(f"🤖 AI 识别功能: {'已启用' if AI_ENABLED else '未启用（需要配置 GEMINI_API_KEY）'}")
+except ImportError as e:
+    AI_ENABLED = False
+    print(f"⚠️ AI 识别模块导入失败: {str(e)}")
+
 app = Flask(__name__)
 CORS(app)  # 允许跨域访问
 
@@ -371,10 +380,13 @@ def upload_cat_photo(cat_id):
 
 @app.route('/api/recognize', methods=['POST'])
 def recognize_cat():
-    """识别猫咪"""
+    """识别猫咪 - 支持 AI 和传统方法"""
     temp_filepath = None
     try:
-        print("🔍 开始识别猫咪...")
+        # 检查是否使用 AI 识别
+        use_ai = request.form.get('use_ai', 'false').lower() == 'true'
+
+        print(f"🔍 开始识别猫咪... (方法: {'AI' if use_ai and AI_ENABLED else '传统哈希'})")
 
         if 'photo' not in request.files:
             print("❌ 没有收到照片文件")
@@ -391,17 +403,7 @@ def recognize_cat():
 
         print(f"✅ 临时文件已保存: {temp_filepath}")
 
-        # 计算上传图片的哈希
-        print("🔢 计算图像哈希...")
-        upload_hash = compute_image_hash(temp_filepath)
-        if not upload_hash:
-            print("❌ 图像处理失败")
-            return jsonify({"error": "Failed to process image"}), 500
-
-        print(f"✅ 图像哈希: {upload_hash[:16]}...")
-
-        # 获取所有猫咪及其照片
-        print("📊 查询数据库...")
+        # 获取所有猫咪数据
         conn = get_db()
         cursor = conn.cursor()
         cats = cursor.execute('SELECT * FROM cats').fetchall()
@@ -409,26 +411,13 @@ def recognize_cat():
 
         matches = []
 
-        for cat in cats:
-            photos = json.loads(cat['photos']) if cat['photos'] else []
-
-            if not photos:
-                continue
-
-            # 计算与每张照片的相似度
-            max_similarity = 0
-            for photo in photos:
-                photo_path = photo.get('path')
-                if photo_path and os.path.exists(photo_path):
-                    photo_hash = compute_image_hash(photo_path)
-                    if photo_hash:
-                        similarity = calculate_similarity(upload_hash, photo_hash)
-                        max_similarity = max(max_similarity, similarity)
-
-            # 如果相似度超过阈值，添加到匹配列表
-            if max_similarity > 30:  # 30% 相似度阈值
-                print(f"✅ 匹配: {cat['name']} (相似度: {max_similarity:.2f}%)")
-                matches.append({
+        # 选择识别方法
+        if use_ai and AI_ENABLED:
+            # 使用 AI 识别
+            print("🤖 使用 AI 识别...")
+            cats_data = []
+            for cat in cats:
+                cats_data.append({
                     'id': cat['id'],
                     'name': cat['name'],
                     'sex': cat['sex'],
@@ -441,9 +430,61 @@ def recognize_cat():
                     'photos': json.loads(cat['photos']) if cat['photos'] else [],
                     'embeddings': json.loads(cat['embeddings']) if cat['embeddings'] else [],
                     'created_at': cat['created_at'],
-                    'updated_at': cat['updated_at'],
-                    'similarity': round(max_similarity, 2)
+                    'updated_at': cat['updated_at']
                 })
+
+            ai_matches = recognize_cat_from_database(temp_filepath, cats_data)
+
+            for match in ai_matches:
+                cat_data = match['cat']
+                cat_data['similarity'] = match['similarity']
+                matches.append(cat_data)
+
+        else:
+            # 使用传统哈希方法
+            print("🔢 使用传统哈希识别...")
+            upload_hash = compute_image_hash(temp_filepath)
+            if not upload_hash:
+                print("❌ 图像处理失败")
+                return jsonify({"error": "Failed to process image"}), 500
+
+            print(f"✅ 图像哈希: {upload_hash[:16]}...")
+
+            for cat in cats:
+                photos = json.loads(cat['photos']) if cat['photos'] else []
+
+                if not photos:
+                    continue
+
+                # 计算与每张照片的相似度
+                max_similarity = 0
+                for photo in photos:
+                    photo_path = photo.get('path')
+                    if photo_path and os.path.exists(photo_path):
+                        photo_hash = compute_image_hash(photo_path)
+                        if photo_hash:
+                            similarity = calculate_similarity(upload_hash, photo_hash)
+                            max_similarity = max(max_similarity, similarity)
+
+                # 如果相似度超过阈值，添加到匹配列表
+                if max_similarity > 30:  # 30% 相似度阈值
+                    print(f"✅ 匹配: {cat['name']} (相似度: {max_similarity:.2f}%)")
+                    matches.append({
+                        'id': cat['id'],
+                        'name': cat['name'],
+                        'sex': cat['sex'],
+                        'age_months': cat['age_months'],
+                        'pattern': cat['pattern'],
+                        'activity_areas': json.loads(cat['activity_areas']) if cat['activity_areas'] else [],
+                        'personality': json.loads(cat['personality']) if cat['personality'] else [],
+                        'food_preferences': json.loads(cat['food_preferences']) if cat['food_preferences'] else [],
+                        'feeding_tips': cat['feeding_tips'],
+                        'photos': json.loads(cat['photos']) if cat['photos'] else [],
+                        'embeddings': json.loads(cat['embeddings']) if cat['embeddings'] else [],
+                        'created_at': cat['created_at'],
+                        'updated_at': cat['updated_at'],
+                        'similarity': round(max_similarity, 2)
+                    })
 
         conn.close()
 
