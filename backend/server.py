@@ -205,6 +205,38 @@ def health_check():
     return jsonify({"status": "ok", "message": "Cathub API is running"})
 
 # ---------- 猫咪档案 API ----------
+def convert_photo_paths_to_urls(photos):
+    """将照片路径转换为完整的 HTTP URL"""
+    if not photos:
+        return []
+
+    result = []
+    for photo in photos:
+        if isinstance(photo, dict):
+            path = photo.get('path', '')
+            # 如果是绝对路径，提取文件名
+            if path.startswith('/') or '\\' in path:
+                filename = os.path.basename(path)
+            else:
+                filename = path
+
+            # 构建完整的 URL
+            photo_url = f"{request.host_url}uploads/{filename}"
+            result.append({
+                'path': photo_url,
+                'uploaded_at': photo.get('uploaded_at', 0)
+            })
+        elif isinstance(photo, str):
+            # 兼容旧格式
+            filename = os.path.basename(photo)
+            photo_url = f"{request.host_url}uploads/{filename}"
+            result.append({
+                'path': photo_url,
+                'uploaded_at': 0
+            })
+
+    return result
+
 @app.route('/api/cats', methods=['GET'])
 def get_cats():
     """获取所有猫咪列表"""
@@ -216,6 +248,7 @@ def get_cats():
 
         result = []
         for cat in cats:
+            photos = json.loads(cat['photos']) if cat['photos'] else []
             result.append({
                 'id': cat['id'],
                 'name': cat['name'],
@@ -226,7 +259,8 @@ def get_cats():
                 'personality': json.loads(cat['personality']) if cat['personality'] else [],
                 'food_preferences': json.loads(cat['food_preferences']) if cat['food_preferences'] else [],
                 'feeding_tips': cat['feeding_tips'],
-                'photos': json.loads(cat['photos']) if cat['photos'] else [],
+                'notes': cat['notes'],
+                'photos': convert_photo_paths_to_urls(photos),
                 'created_at': cat['created_at'],
                 'updated_at': cat['updated_at']
             })
@@ -245,10 +279,12 @@ def get_cat(cat_id):
     conn = get_db()
     cat = conn.execute('SELECT * FROM cats WHERE id = ?', (cat_id,)).fetchone()
     conn.close()
-    
+
     if not cat:
         return jsonify({"error": "Cat not found"}), 404
-    
+
+    photos = json.loads(cat['photos']) if cat['photos'] else []
+
     return jsonify({
         'id': cat['id'],
         'name': cat['name'],
@@ -259,7 +295,8 @@ def get_cat(cat_id):
         'personality': json.loads(cat['personality']) if cat['personality'] else [],
         'food_preferences': json.loads(cat['food_preferences']) if cat['food_preferences'] else [],
         'feeding_tips': cat['feeding_tips'],
-        'photos': json.loads(cat['photos']) if cat['photos'] else [],
+        'notes': cat['notes'],
+        'photos': convert_photo_paths_to_urls(photos),
         'embeddings': json.loads(cat['embeddings']) if cat['embeddings'] else [],
         'created_at': cat['created_at'],
         'updated_at': cat['updated_at']
@@ -483,6 +520,7 @@ def recognize_cat():
                 # 如果相似度超过阈值，添加到匹配列表
                 if max_similarity > 30:  # 30% 相似度阈值
                     print(f"✅ 匹配: {cat['name']} (相似度: {max_similarity:.2f}%)")
+                    photos_data = json.loads(cat['photos']) if cat['photos'] else []
                     matches.append({
                         'id': cat['id'],
                         'name': cat['name'],
@@ -493,7 +531,8 @@ def recognize_cat():
                         'personality': json.loads(cat['personality']) if cat['personality'] else [],
                         'food_preferences': json.loads(cat['food_preferences']) if cat['food_preferences'] else [],
                         'feeding_tips': cat['feeding_tips'],
-                        'photos': json.loads(cat['photos']) if cat['photos'] else [],
+                        'notes': cat['notes'],
+                        'photos': convert_photo_paths_to_urls(photos_data),
                         'embeddings': json.loads(cat['embeddings']) if cat['embeddings'] else [],
                         'created_at': cat['created_at'],
                         'updated_at': cat['updated_at'],
