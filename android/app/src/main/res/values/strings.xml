@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cathub</string>
+    
+    <!-- 主页 -->
+    <string name="home_title">Cathub</string>
+    <string name="home_recognition">识别</string>
+    <string name="home_report">上报</string>
+    <string name="home_profile">档案</string>
+    
+    <!-- 识别页 -->
+    <string name="recognition_title">猫咪识别</string>
+    <string name="recognition_scanning">扫描中...</string>
+    <string name="recognition_found">找到匹配</string>
+    <string name="recognition_not_found">未找到匹配</string>
+    <string name="recognition_create_new">创建新档案</string>
+    
+    <!-- 档案页 -->
+    <string name="profile_title">猫咪档案</string>
+    <string name="profile_add">添加猫咪</string>
+    <string name="profile_name">名字</string>
+    <string name="profile_sex">性别</string>
+    <string name="profile_age">年龄</string>
+    <string name="profile_pattern">花色</string>
+    <string name="profile_activity_areas">活动区域</string>
+    <string name="profile_personality">性格</string>
+    <string name="profile_food_preferences">食物喜好</string>
+    <string name="profile_feeding_tips">投喂建议</string>
+    
+    <!-- 性别 -->
+    <string name="sex_male">公猫</string>
+    <string name="sex_female">母猫</string>
+    <string name="sex_unknown">未知</string>
+    
+    <!-- 上报页 -->
+    <string name="report_title">状态上报</string>
+    <string name="report_type_injury">受伤</string>
+    <string name="report_type_sick">生病</string>
+    <string name="report_type_neutered">已绝育</string>
+    <string name="report_type_other">其他</string>
+    <string name="report_submit">提交上报</string>
+    
+    <!-- 投喂页 -->
+    <string name="feed_title">投喂记录</string>
+    <string name="feed_food">食物</string>
+    <string name="feed_quantity">数量</string>
+    <string name="feed_note">备注</string>
+    <string name="feed_submit">记录投喂</string>
+    
+    <!-- 通用 -->
+    <string name="save">保存</string>
+    <string name="cancel">取消</string>
+    <string name="delete">删除</string>
+    <string name="edit">编辑</string>
+    <string name="photo">照片</string>
+    <string name="add_photo">添加照片</string>
+    <string name="take_photo">拍照</string>
+    <string name="choose_from_gallery">从相册选择</string>
+    <string name="loading">加载中...</string>
+    <string name="error">错误</string>
+    <string name="success">成功</string>
+    
+    <!-- 权限 -->
+    <string name="permission_camera_rationale">需要相机权限来识别猫咪</string>
+    <string name="permission_photos_rationale">需要访问照片来添加猫咪档案</string>
+    <string name="permission_notification_rationale">需要通知权限来接收上报提醒</string>
+</resources>
+
