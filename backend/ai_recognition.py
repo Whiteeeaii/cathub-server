@@ -261,8 +261,8 @@ def _compare_with_ernie(image1_path, image2_path, prompt):
 
 def recognize_cat_from_database(upload_image_path, cats_data):
     """
-    使用 Gemini 从数据库中识别猫咪
-    
+    使用 AI 从数据库中识别猫咪
+
     参数:
         upload_image_path: 上传的照片路径
         cats_data: 数据库中的猫咪列表，格式：
@@ -275,48 +275,73 @@ def recognize_cat_from_database(upload_image_path, cats_data):
                 },
                 ...
             ]
-    
+
     返回:
         匹配的猫咪列表，按相似度排序
     """
-    if not model:
+    if not ai_service:
+        print("❌ AI 服务未配置")
         return []
+
+    print(f"🤖 开始 AI 识别 (服务商: {ai_service})")
     
     try:
         # 1. 描述上传的猫咪
+        print(f"📸 分析上传的照片: {upload_image_path}")
         upload_features = describe_cat_features(upload_image_path)
         if not upload_features:
+            print("❌ 无法提取上传照片的特征")
             return []
-        
+
+        print(f"✅ 上传照片特征: {upload_features.get('overall_description', '')}")
+
         matches = []
-        
+
         # 2. 与每只猫咪的照片比较
+        print(f"🔍 开始与 {len(cats_data)} 只猫咪比较...")
         for cat in cats_data:
             if not cat.get('photos'):
+                print(f"  ⚠️ {cat.get('name', 'Unknown')} 没有照片，跳过")
                 continue
-            
+
             max_similarity = 0
             best_reason = ""
-            
+
+            print(f"  📷 比较猫咪: {cat.get('name', 'Unknown')} ({len(cat['photos'])} 张照片)")
+
             # 与该猫咪的每张照片比较
-            for photo in cat['photos']:
+            for i, photo in enumerate(cat['photos']):
                 photo_path = photo.get('path')
-                if not photo_path or not os.path.exists(photo_path):
+                if not photo_path:
+                    print(f"    ⚠️ 照片 {i+1} 没有路径")
                     continue
-                
+                if not os.path.exists(photo_path):
+                    print(f"    ⚠️ 照片 {i+1} 不存在: {photo_path}")
+                    continue
+
+                print(f"    🔄 比较照片 {i+1}: {photo_path}")
+
                 # 使用 AI 比较
                 result = compare_cat_images(upload_image_path, photo_path)
-                if result and result.get('similarity', 0) > max_similarity:
-                    max_similarity = result['similarity']
-                    best_reason = result.get('reason', '')
-            
+                if result:
+                    similarity = result.get('similarity', 0)
+                    print(f"    ✅ 相似度: {similarity}%")
+                    if similarity > max_similarity:
+                        max_similarity = similarity
+                        best_reason = result.get('reason', '')
+                else:
+                    print(f"    ❌ 比较失败")
+
             # 如果相似度超过阈值，添加到匹配列表
             if max_similarity > 50:  # 50% 阈值
+                print(f"  ✅ 匹配成功: {cat.get('name', 'Unknown')} (相似度: {max_similarity}%)")
                 matches.append({
                     'cat': cat,
                     'similarity': max_similarity,
                     'reason': best_reason
                 })
+            else:
+                print(f"  ❌ 相似度不足: {cat.get('name', 'Unknown')} (相似度: {max_similarity}%)")
         
         # 按相似度排序
         matches.sort(key=lambda x: x['similarity'], reverse=True)
