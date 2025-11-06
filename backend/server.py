@@ -65,6 +65,7 @@ def init_db():
         personality TEXT,
         food_preferences TEXT,
         feeding_tips TEXT,
+        notes TEXT,
         photos TEXT,
         embeddings TEXT,
         created_by TEXT,
@@ -278,8 +279,8 @@ def create_cat():
 
         cursor.execute('''INSERT INTO cats
             (name, sex, age_months, pattern, activity_areas, personality,
-             food_preferences, feeding_tips, photos, embeddings, created_by, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+             food_preferences, feeding_tips, notes, photos, embeddings, created_by, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
             (
                 data.get('name'),
                 data.get('sex'),
@@ -289,6 +290,7 @@ def create_cat():
                 json.dumps(data.get('personality', []), ensure_ascii=False),
                 json.dumps(data.get('food_preferences', []), ensure_ascii=False),
                 data.get('feeding_tips'),
+                data.get('notes'),
                 json.dumps(data.get('photos', []), ensure_ascii=False),
                 json.dumps(data.get('embeddings', []), ensure_ascii=False),
                 data.get('created_by', 'anonymous'),

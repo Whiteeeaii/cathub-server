@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Cathub</string>
-    
+    <string name="app_name">CatHub</string>
+
     <!-- 主页 -->
-    <string name="home_title">Cathub</string>
+    <string name="home_title">CatHub</string>
     <string name="home_recognition">识别</string>
     <string name="home_report">上报</string>
     <string name="home_profile">档案</string>
@@ -65,4 +65,3 @@
     <string name="permission_photos_rationale">需要访问照片来添加猫咪档案</string>
     <string name="permission_notification_rationale">需要通知权限来接收上报提醒</string>
 </resources>
-

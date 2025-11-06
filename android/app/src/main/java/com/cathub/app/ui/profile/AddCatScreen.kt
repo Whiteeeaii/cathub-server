@@ -52,6 +52,7 @@ fun AddCatScreen(
     var personality by remember { mutableStateOf("") }
     var foodPreferences by remember { mutableStateOf("") }
     var feedingTips by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
     var selectedPhotos by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
     val isLoading by viewModel.isLoading.collectAsState()
@@ -142,6 +143,79 @@ fun AddCatScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 照片上传
+            Text("照片", style = MaterialTheme.typography.labelLarge)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // 拍照按钮
+                OutlinedButton(
+                    onClick = {
+                        if (hasCameraPermission) {
+                            takePictureLauncher.launch(photoUri)
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("拍照")
+                }
+
+                // 从相册选择
+                OutlinedButton(
+                    onClick = { pickImagesLauncher.launch("image/*") },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("相册")
+                }
+            }
+
+            // 显示已选择的照片
+            if (selectedPhotos.isNotEmpty()) {
+                Text("已选择 ${selectedPhotos.size} 张照片", style = MaterialTheme.typography.bodySmall)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    selectedPhotos.take(3).forEach { uri ->
+                        Box(modifier = Modifier.size(80.dp)) {
+                            Card {
+                                Image(
+                                    painter = rememberAsyncImagePainter(uri),
+                                    contentDescription = "照片",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                            IconButton(
+                                onClick = { selectedPhotos = selectedPhotos - uri },
+                                modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "删除",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                    if (selectedPhotos.size > 3) {
+                        Box(
+                            modifier = Modifier.size(80.dp),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            Text("+${selectedPhotos.size - 3}")
+                        }
+                    }
+                }
+            }
+
             // 名字
             OutlinedTextField(
                 value = name,
@@ -230,78 +304,15 @@ fun AddCatScreen(
                 placeholder = { Text("例如：避免乳制品；少量多餐") }
             )
 
-            // 照片上传
-            Text("照片（可选）", style = MaterialTheme.typography.labelLarge)
-            Row(
+            // 备注
+            OutlinedTextField(
+                value = notes,
+                onValueChange = { notes = it },
+                label = { Text("备注") },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // 拍照按钮
-                OutlinedButton(
-                    onClick = {
-                        if (hasCameraPermission) {
-                            takePictureLauncher.launch(photoUri)
-                        } else {
-                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("拍照")
-                }
-
-                // 从相册选择
-                OutlinedButton(
-                    onClick = { pickImagesLauncher.launch("image/*") },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("相册")
-                }
-            }
-
-            // 显示已选择的照片
-            if (selectedPhotos.isNotEmpty()) {
-                Text("已选择 ${selectedPhotos.size} 张照片", style = MaterialTheme.typography.bodySmall)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    selectedPhotos.take(3).forEach { uri ->
-                        Box(modifier = Modifier.size(80.dp)) {
-                            Card {
-                                Image(
-                                    painter = rememberAsyncImagePainter(uri),
-                                    contentDescription = "照片",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                            IconButton(
-                                onClick = { selectedPhotos = selectedPhotos - uri },
-                                modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "删除",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
-                    if (selectedPhotos.size > 3) {
-                        Box(
-                            modifier = Modifier.size(80.dp),
-                            contentAlignment = androidx.compose.ui.Alignment.Center
-                        ) {
-                            Text("+${selectedPhotos.size - 3}")
-                        }
-                    }
-                }
-            }
+                minLines = 3,
+                placeholder = { Text("其他需要记录的信息") }
+            )
 
             // 错误提示
             if (error != null) {
@@ -327,7 +338,8 @@ fun AddCatScreen(
                         activity_areas = activityAreas.split(",").map { it.trim() }.filter { it.isNotBlank() },
                         personality = personality.split(",").map { it.trim() }.filter { it.isNotBlank() },
                         food_preferences = foodPreferences.split(",").map { it.trim() }.filter { it.isNotBlank() },
-                        feeding_tips = feedingTips.ifBlank { null }
+                        feeding_tips = feedingTips.ifBlank { null },
+                        notes = notes.ifBlank { null }
                     )
 
                     // 创建猫咪

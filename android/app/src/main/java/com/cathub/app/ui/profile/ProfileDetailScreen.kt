@@ -1,7 +1,10 @@
 package com.cathub.app.ui.profile
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -9,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -85,16 +89,39 @@ fun ProfileDetailScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // 照片
+                        // 照片画廊
                         if (cat!!.photos.isNotEmpty()) {
-                            AsyncImage(
-                                model = cat!!.photos.first().path,
-                                contentDescription = cat!!.name,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(300.dp),
-                                contentScale = ContentScale.Crop
-                            )
+                            InfoSection(title = "照片") {
+                                // 主照片
+                                AsyncImage(
+                                    model = cat!!.photos.first().path,
+                                    contentDescription = cat!!.name,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(300.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+
+                                // 其他照片缩略图
+                                if (cat!!.photos.size > 1) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        items(cat!!.photos.drop(1)) { photo ->
+                                            AsyncImage(
+                                                model = photo.path,
+                                                contentDescription = "照片",
+                                                modifier = Modifier
+                                                    .size(100.dp)
+                                                    .clip(RoundedCornerShape(8.dp)),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                         
                         // 基本信息
@@ -146,6 +173,16 @@ fun ProfileDetailScreen(
                         // 投喂建议
                         cat!!.feedingTips?.let {
                             InfoSection(title = "投喂建议") {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+
+                        // 备注
+                        cat!!.notes?.let {
+                            InfoSection(title = "备注") {
                                 Text(
                                     text = it,
                                     style = MaterialTheme.typography.bodyMedium

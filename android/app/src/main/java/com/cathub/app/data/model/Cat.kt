@@ -32,7 +32,10 @@ data class Cat(
     
     @SerializedName("feeding_tips")
     val feedingTips: String?,
-    
+
+    @SerializedName("notes")
+    val notes: String?,
+
     @SerializedName("photos")
     val photos: List<Photo> = emptyList(),
     
@@ -77,6 +80,7 @@ data class CreateCatRequest(
     val personality: List<String>,
     val food_preferences: List<String>,
     val feeding_tips: String?,
+    val notes: String?,
     val photos: List<Photo> = emptyList(),
     val embeddings: List<Embedding> = emptyList()
 )
