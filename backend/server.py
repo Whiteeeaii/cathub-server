@@ -70,7 +70,11 @@ def init_db():
         embeddings TEXT,
         created_by TEXT,
         created_at INTEGER,
-        updated_at INTEGER
+        updated_at INTEGER,
+        last_seen_at INTEGER,
+        last_seen_location TEXT,
+        last_seen_latitude REAL,
+        last_seen_longitude REAL
     )''')
     
     # 目击记录表
@@ -111,7 +115,39 @@ def init_db():
         ts INTEGER,
         FOREIGN KEY (cat_id) REFERENCES cats(id)
     )''')
-    
+
+    # 事件表
+    c.execute('''CREATE TABLE IF NOT EXISTS events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_type TEXT NOT NULL,
+        cat_id INTEGER,
+        cat_name TEXT,
+        title TEXT NOT NULL,
+        description TEXT,
+        location TEXT,
+        latitude REAL,
+        longitude REAL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (cat_id) REFERENCES cats(id)
+    )''')
+
+    # 数据库迁移：为现有表添加新字段
+    try:
+        # 检查 cats 表是否有 last_seen_at 字段
+        c.execute("PRAGMA table_info(cats)")
+        columns = [column[1] for column in c.fetchall()]
+
+        if 'last_seen_at' not in columns:
+            print("🔄 迁移数据库：添加 last_seen 字段...")
+            c.execute("ALTER TABLE cats ADD COLUMN last_seen_at INTEGER")
+            c.execute("ALTER TABLE cats ADD COLUMN last_seen_location TEXT")
+            c.execute("ALTER TABLE cats ADD COLUMN last_seen_latitude REAL")
+            c.execute("ALTER TABLE cats ADD COLUMN last_seen_longitude REAL")
+            conn.commit()
+            print("✅ 数据库迁移完成")
+    except Exception as e:
+        print(f"⚠️ 数据库迁移警告: {str(e)}")
+
     conn.commit()
     conn.close()
     print("✅ 数据库初始化完成")
@@ -177,6 +213,23 @@ def compute_image_hash(image_path):
         import traceback
         traceback.print_exc()
         return None
+
+def create_event(event_type, cat_id, cat_name, title, description=None, location=None, latitude=None, longitude=None):
+    """创建事件记录"""
+    try:
+        conn = get_db()
+        conn.execute('''INSERT INTO events
+            (event_type, cat_id, cat_name, title, description, location, latitude, longitude, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (event_type, cat_id, cat_name, title, description, location, latitude, longitude, int(time.time() * 1000))
+        )
+        conn.commit()
+        conn.close()
+        print(f"✅ 事件已创建: {title}")
+        return True
+    except Exception as e:
+        print(f"❌ 创建事件失败: {str(e)}")
+        return False
 
 def hamming_distance(hash1, hash2):
     """计算两个哈希值的汉明距离"""
@@ -262,7 +315,11 @@ def get_cats():
                 'notes': cat['notes'],
                 'photos': convert_photo_paths_to_urls(photos),
                 'created_at': cat['created_at'],
-                'updated_at': cat['updated_at']
+                'updated_at': cat['updated_at'],
+                'last_seen_at': cat['last_seen_at'],
+                'last_seen_location': cat['last_seen_location'],
+                'last_seen_latitude': cat['last_seen_latitude'],
+                'last_seen_longitude': cat['last_seen_longitude']
             })
 
         print(f"✅ 返回 {len(result)} 只猫咪")
@@ -299,7 +356,11 @@ def get_cat(cat_id):
         'photos': convert_photo_paths_to_urls(photos),
         'embeddings': json.loads(cat['embeddings']) if cat['embeddings'] else [],
         'created_at': cat['created_at'],
-        'updated_at': cat['updated_at']
+        'updated_at': cat['updated_at'],
+        'last_seen_at': cat['last_seen_at'],
+        'last_seen_location': cat['last_seen_location'],
+        'last_seen_latitude': cat['last_seen_latitude'],
+        'last_seen_longitude': cat['last_seen_longitude']
     })
 
 @app.route('/api/cats', methods=['POST'])
@@ -546,6 +607,43 @@ def recognize_cat():
 
         print(f"🎯 识别完成，找到 {len(matches)} 个匹配")
 
+        # 获取位置信息
+        location = request.form.get('location')
+        latitude = request.form.get('latitude', type=float)
+        longitude = request.form.get('longitude', type=float)
+
+        # 如果有匹配结果且提供了位置信息，更新猫咪的最后出没位置并创建事件
+        if matches and location:
+            for match in matches:
+                cat_id = match['id']
+                cat_name = match['name']
+
+                # 更新猫咪的最后出没位置
+                try:
+                    conn = get_db()
+                    conn.execute('''UPDATE cats
+                        SET last_seen_at = ?, last_seen_location = ?, last_seen_latitude = ?, last_seen_longitude = ?
+                        WHERE id = ?''',
+                        (int(time.time() * 1000), location, latitude, longitude, cat_id)
+                    )
+                    conn.commit()
+                    conn.close()
+                    print(f"✅ 更新 {cat_name} 的最后出没位置: {location}")
+
+                    # 创建事件
+                    create_event(
+                        event_type='sighting',
+                        cat_id=cat_id,
+                        cat_name=cat_name,
+                        title=f"{cat_name} 在 {location} 出没",
+                        description=f"有人在 {location} 发现了 {cat_name}",
+                        location=location,
+                        latitude=latitude,
+                        longitude=longitude
+                    )
+                except Exception as e:
+                    print(f"⚠️ 更新最后出没位置失败: {str(e)}")
+
         # 删除临时文件
         if temp_filepath:
             try:
@@ -638,9 +736,39 @@ def create_health_report():
         ))
     
     report_id = cursor.lastrowid
+
+    # 获取猫咪名称
+    cat = cursor.execute('SELECT name FROM cats WHERE id = ?', (data.get('cat_id'),)).fetchone()
+    cat_name = cat['name'] if cat else '未知猫咪'
+
     conn.commit()
     conn.close()
-    
+
+    # 创建事件
+    report_type = data.get('type', '健康问题')
+    severity = data.get('severity', '未知')
+
+    # 根据严重程度生成标题
+    if severity == 'critical':
+        severity_text = '紧急'
+    elif severity == 'serious':
+        severity_text = '严重'
+    elif severity == 'moderate':
+        severity_text = '中度'
+    else:
+        severity_text = '轻微'
+
+    create_event(
+        event_type='health_report',
+        cat_id=data.get('cat_id'),
+        cat_name=cat_name,
+        title=f"{cat_name} {report_type}（{severity_text}）",
+        description=data.get('note', ''),
+        location=data.get('location'),
+        latitude=data.get('latitude'),
+        longitude=data.get('longitude')
+    )
+
     return jsonify({"id": report_id, "message": "Health report created successfully"}), 201
 
 @app.route('/api/health_reports', methods=['GET'])
@@ -717,6 +845,42 @@ def get_feed_logs():
 def uploaded_file(filename):
     """访问上传的照片"""
     return send_from_directory(UPLOAD_FOLDER, filename)
+
+# ---------- 事件 API ----------
+@app.route('/api/events', methods=['GET'])
+def get_events():
+    """获取事件列表"""
+    try:
+        limit = request.args.get('limit', 20, type=int)
+
+        conn = get_db()
+        events = conn.execute(
+            'SELECT * FROM events ORDER BY created_at DESC LIMIT ?',
+            (limit,)
+        ).fetchall()
+        conn.close()
+
+        result = []
+        for event in events:
+            result.append({
+                'id': event['id'],
+                'event_type': event['event_type'],
+                'cat_id': event['cat_id'],
+                'cat_name': event['cat_name'],
+                'title': event['title'],
+                'description': event['description'],
+                'location': event['location'],
+                'latitude': event['latitude'],
+                'longitude': event['longitude'],
+                'created_at': event['created_at']
+            })
+
+        return jsonify(result)
+    except Exception as e:
+        print(f"❌ 获取事件失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 # ==================== 启动服务器 ====================
 if __name__ == '__main__':
