@@ -15,6 +15,13 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 QWEN_API_KEY = os.environ.get('DASHSCOPE_API_KEY', '')  # 阿里云通义千问
 ERNIE_API_KEY = os.environ.get('ERNIE_API_KEY', '')  # 百度文心一言
 
+# 调试信息
+print(f"🔍 环境变量检测:")
+print(f"   AI_PROVIDER = '{AI_PROVIDER}'")
+print(f"   DASHSCOPE_API_KEY = {'已设置 (长度: ' + str(len(QWEN_API_KEY)) + ')' if QWEN_API_KEY else '未设置'}")
+print(f"   GEMINI_API_KEY = {'已设置' if GEMINI_API_KEY else '未设置'}")
+print(f"   ERNIE_API_KEY = {'已设置' if ERNIE_API_KEY else '未设置'}")
+
 model = None
 ai_service = None
 
@@ -140,9 +147,9 @@ def _describe_with_qwen(image_path, prompt, max_retries=3):
             start_time = time.time()
 
             response = MultiModalConversation.call(
-                model='qwen-vl-turbo',  # 使用 qwen-vl-turbo（速度优先，3-8 秒响应）
+                model='qwen-vl-plus',  # 使用 qwen-vl-plus（准确度和速度平衡）
                 messages=messages,
-                timeout=60  # 减少到 60 秒超时（turbo 模型更快）
+                timeout=90  # 90 秒超时
             )
 
             elapsed = time.time() - start_time
@@ -281,9 +288,9 @@ def _compare_with_qwen(image1_path, image2_path, prompt, max_retries=3):
             start_time = time.time()
 
             response = MultiModalConversation.call(
-                model='qwen-vl-turbo',  # 使用 qwen-vl-turbo（速度优先，3-8 秒响应）
+                model='qwen-vl-plus',  # 使用 qwen-vl-plus（准确度和速度平衡）
                 messages=messages,
-                timeout=60  # 减少到 60 秒超时（turbo 模型更快）
+                timeout=90  # 90 秒超时
             )
 
             elapsed = time.time() - start_time
