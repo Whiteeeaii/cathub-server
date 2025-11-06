@@ -11,6 +11,9 @@ import time
 import base64
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from PIL import Image
+import io
+import hashlib
 
 app = Flask(__name__)
 CORS(app)  # 允许跨域访问
@@ -112,6 +115,36 @@ def save_photo(file):
         file.save(filepath)
         return filepath
     return None
+
+def compute_image_hash(image_path):
+    """计算图像的感知哈希值（用于相似度比较）"""
+    try:
+        img = Image.open(image_path)
+        # 转换为灰度图
+        img = img.convert('L')
+        # 缩放到 8x8
+        img = img.resize((8, 8), Image.Resampling.LANCZOS)
+        # 计算平均值
+        pixels = list(img.getdata())
+        avg = sum(pixels) / len(pixels)
+        # 生成哈希
+        hash_str = ''.join(['1' if p > avg else '0' for p in pixels])
+        return hash_str
+    except Exception as e:
+        print(f"计算图像哈希失败: {str(e)}")
+        return None
+
+def hamming_distance(hash1, hash2):
+    """计算两个哈希值的汉明距离"""
+    if not hash1 or not hash2 or len(hash1) != len(hash2):
+        return 100
+    return sum(c1 != c2 for c1, c2 in zip(hash1, hash2))
+
+def calculate_similarity(hash1, hash2):
+    """计算相似度（0-100）"""
+    distance = hamming_distance(hash1, hash2)
+    similarity = (1 - distance / 64.0) * 100
+    return max(0, similarity)
 
 # ==================== 初始化数据库 ====================
 # 在模块加载时初始化数据库（确保 gunicorn 启动时也会执行）
@@ -305,6 +338,89 @@ def upload_cat_photo(cat_id):
     conn.close()
     
     return jsonify({"path": filepath, "message": "Photo uploaded successfully"})
+
+@app.route('/api/recognize', methods=['POST'])
+def recognize_cat():
+    """识别猫咪"""
+    try:
+        if 'photo' not in request.files:
+            return jsonify({"error": "No photo provided"}), 400
+
+        file = request.files['photo']
+
+        # 保存临时文件
+        temp_filepath = save_photo(file)
+        if not temp_filepath:
+            return jsonify({"error": "Invalid file type"}), 400
+
+        # 计算上传图片的哈希
+        upload_hash = compute_image_hash(temp_filepath)
+        if not upload_hash:
+            return jsonify({"error": "Failed to process image"}), 500
+
+        # 获取所有猫咪及其照片
+        conn = get_db()
+        cursor = conn.cursor()
+        cats = cursor.execute('SELECT * FROM cats').fetchall()
+
+        matches = []
+
+        for cat in cats:
+            photos = json.loads(cat['photos']) if cat['photos'] else []
+
+            if not photos:
+                continue
+
+            # 计算与每张照片的相似度
+            max_similarity = 0
+            for photo in photos:
+                photo_path = photo.get('path')
+                if photo_path and os.path.exists(photo_path):
+                    photo_hash = compute_image_hash(photo_path)
+                    if photo_hash:
+                        similarity = calculate_similarity(upload_hash, photo_hash)
+                        max_similarity = max(max_similarity, similarity)
+
+            # 如果相似度超过阈值，添加到匹配列表
+            if max_similarity > 30:  # 30% 相似度阈值
+                matches.append({
+                    'id': cat['id'],
+                    'name': cat['name'],
+                    'sex': cat['sex'],
+                    'age_months': cat['age_months'],
+                    'pattern': cat['pattern'],
+                    'activity_areas': json.loads(cat['activity_areas']) if cat['activity_areas'] else [],
+                    'personality': json.loads(cat['personality']) if cat['personality'] else [],
+                    'food_preferences': json.loads(cat['food_preferences']) if cat['food_preferences'] else [],
+                    'feeding_tips': cat['feeding_tips'],
+                    'photos': json.loads(cat['photos']) if cat['photos'] else [],
+                    'embeddings': json.loads(cat['embeddings']) if cat['embeddings'] else [],
+                    'created_at': cat['created_at'],
+                    'updated_at': cat['updated_at'],
+                    'similarity': round(max_similarity, 2)
+                })
+
+        conn.close()
+
+        # 按相似度排序
+        matches.sort(key=lambda x: x['similarity'], reverse=True)
+
+        # 删除临时文件
+        try:
+            os.remove(temp_filepath)
+        except:
+            pass
+
+        return jsonify({
+            "matches": matches,
+            "count": len(matches)
+        })
+
+    except Exception as e:
+        print(f"❌ 识别失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 # ---------- 目击记录 API ----------
 @app.route('/api/sightings', methods=['POST'])

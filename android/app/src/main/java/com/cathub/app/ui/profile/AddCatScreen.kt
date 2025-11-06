@@ -25,7 +25,9 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.cathub.app.data.model.CreateCatRequest
+import kotlinx.coroutines.launch
 import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,6 +42,7 @@ fun AddCatScreen(
     viewModel: ProfileViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var name by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("unknown") }
@@ -98,7 +101,24 @@ fun AddCatScreen(
     ) { uris ->
         selectedPhotos = selectedPhotos + uris
     }
-    
+
+    // 辅助函数：将 Uri 转换为 File
+    fun uriToFile(uri: Uri): File? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val file = File(context.cacheDir, "upload_$timeStamp.jpg")
+            val outputStream = FileOutputStream(file)
+            inputStream.copyTo(outputStream)
+            inputStream.close()
+            outputStream.close()
+            file
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -298,7 +318,7 @@ fun AddCatScreen(
                     if (name.isBlank()) {
                         return@Button
                     }
-                    
+
                     val request = CreateCatRequest(
                         name = name,
                         sex = sex,
@@ -309,9 +329,48 @@ fun AddCatScreen(
                         food_preferences = foodPreferences.split(",").map { it.trim() }.filter { it.isNotBlank() },
                         feeding_tips = feedingTips.ifBlank { null }
                     )
-                    
+
+                    // 创建猫咪
                     viewModel.createCat(request) { catId ->
-                        onCatCreated(catId)
+                        // 如果有照片，上传照片
+                        if (selectedPhotos.isNotEmpty()) {
+                            scope.launch {
+                                var uploadedCount = 0
+                                var failedCount = 0
+
+                                selectedPhotos.forEach { uri ->
+                                    val file = uriToFile(uri)
+                                    if (file != null) {
+                                        viewModel.uploadPhoto(
+                                            catId = catId,
+                                            photoFile = file,
+                                            onSuccess = {
+                                                uploadedCount++
+                                                // 所有照片上传完成
+                                                if (uploadedCount + failedCount == selectedPhotos.size) {
+                                                    onCatCreated(catId)
+                                                }
+                                            },
+                                            onError = { error ->
+                                                failedCount++
+                                                // 所有照片上传完成（包括失败的）
+                                                if (uploadedCount + failedCount == selectedPhotos.size) {
+                                                    onCatCreated(catId)
+                                                }
+                                            }
+                                        )
+                                    } else {
+                                        failedCount++
+                                        if (uploadedCount + failedCount == selectedPhotos.size) {
+                                            onCatCreated(catId)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // 没有照片，直接完成
+                            onCatCreated(catId)
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

@@ -283,11 +283,37 @@ private suspend fun recognizeCat(
 ) {
     onLoading(true)
     try {
-        // TODO: 实际应该调用识别 API
-        // 目前简化为返回所有猫咪列表
-        val cats = RetrofitClient.api.getCats()
+        // 调用识别 API
+        val requestBody = imageFile.asRequestBody("image/*".toMediaTypeOrNull())
+        val part = MultipartBody.Part.createFormData("photo", imageFile.name, requestBody)
+
+        val response = RetrofitClient.api.recognizeCat(part)
+
+        // 将 CatMatch 转换为 Cat
+        val cats = response.matches.map { match ->
+            Cat(
+                id = match.id,
+                name = match.name,
+                sex = match.sex,
+                ageMonths = match.age_months,
+                pattern = match.pattern,
+                activityAreas = match.activity_areas,
+                personality = match.personality,
+                foodPreferences = match.food_preferences,
+                feedingTips = match.feeding_tips,
+                photos = match.photos,
+                embeddings = emptyList(), // CatMatch 的 embeddings 是 List<String>，Cat 需要 List<Embedding>
+                createdAt = match.created_at,
+                updatedAt = match.updated_at
+            )
+        }
+
+        if (cats.isEmpty()) {
+            onError("未找到匹配的猫咪")
+        } else {
+            onError("找到 ${cats.size} 只相似的猫咪（相似度 ${response.matches.firstOrNull()?.similarity?.toInt() ?: 0}%）")
+        }
         onSuccess(cats)
-        onError("提示: 当前为简化版本，显示所有猫咪。完整版本将使用图像识别技术。")
     } catch (e: Exception) {
         onError("识别失败: ${e.message}")
         onSuccess(emptyList())

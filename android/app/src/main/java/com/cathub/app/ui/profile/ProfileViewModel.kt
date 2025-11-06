@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * 档案 ViewModel
@@ -96,7 +97,7 @@ class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            
+
             repository.updateCat(id, request)
                 .onSuccess {
                     onSuccess()
@@ -104,8 +105,23 @@ class ProfileViewModel : ViewModel() {
                 .onFailure { e ->
                     _error.value = e.message ?: "更新失败"
                 }
-            
+
             _isLoading.value = false
+        }
+    }
+
+    /**
+     * 上传猫咪照片
+     */
+    fun uploadPhoto(catId: Int, photoFile: File, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            repository.uploadPhoto(catId, photoFile)
+                .onSuccess {
+                    onSuccess()
+                }
+                .onFailure { e ->
+                    onError(e.message ?: "上传失败")
+                }
         }
     }
 }

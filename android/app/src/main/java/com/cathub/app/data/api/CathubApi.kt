@@ -28,7 +28,13 @@ interface CathubApi {
         @Path("id") id: Int,
         @Part photo: MultipartBody.Part
     ): UploadPhotoResponse
-    
+
+    @Multipart
+    @POST("api/recognize")
+    suspend fun recognizeCat(
+        @Part photo: MultipartBody.Part
+    ): RecognizeResponse
+
     // ========== 目击记录 ==========
     @POST("api/sightings")
     suspend fun createSighting(@Body request: CreateSightingRequest): CreateSightingResponse
@@ -63,4 +69,21 @@ data class CreateFeedLogResponse(val id: Int, val message: String)
 data class MessageResponse(val message: String)
 data class UploadPhotoResponse(val path: String, val message: String)
 data class HealthCheckResponse(val status: String, val message: String)
+data class RecognizeResponse(val matches: List<CatMatch>, val count: Int)
+data class CatMatch(
+    val id: Int,
+    val name: String,
+    val sex: String,
+    val age_months: Int?,
+    val pattern: String?,
+    val activity_areas: List<String>,
+    val personality: List<String>,
+    val food_preferences: List<String>,
+    val feeding_tips: String?,
+    val photos: List<Photo>,
+    val embeddings: List<String>,
+    val created_at: Long,
+    val updated_at: Long,
+    val similarity: Double
+)
 
