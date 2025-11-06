@@ -127,7 +127,7 @@ def _describe_with_qwen(image_path, prompt):
     }]
 
     response = MultiModalConversation.call(
-        model='qwen-vl-plus',  # 使用通义千问视觉模型
+        model='qwen3-vl-flash',  # 使用最新最快的 Qwen3 视觉模型
         messages=messages
     )
 
@@ -231,7 +231,7 @@ def _compare_with_qwen(image1_path, image2_path, prompt):
     }]
 
     response = MultiModalConversation.call(
-        model='qwen-vl-plus',  # 使用通义千问视觉模型
+        model='qwen3-vl-flash',  # 使用最新最快的 Qwen3 视觉模型
         messages=messages
     )
 
