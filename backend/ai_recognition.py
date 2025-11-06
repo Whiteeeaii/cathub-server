@@ -140,9 +140,9 @@ def _describe_with_qwen(image_path, prompt, max_retries=3):
             start_time = time.time()
 
             response = MultiModalConversation.call(
-                model='qwen-vl-plus',  # 使用 qwen-vl-plus（速度和准确度平衡）
+                model='qwen-vl-turbo',  # 使用 qwen-vl-turbo（速度优先，3-8 秒响应）
                 messages=messages,
-                timeout=90  # 增加到 90 秒超时
+                timeout=60  # 减少到 60 秒超时（turbo 模型更快）
             )
 
             elapsed = time.time() - start_time
@@ -281,9 +281,9 @@ def _compare_with_qwen(image1_path, image2_path, prompt, max_retries=3):
             start_time = time.time()
 
             response = MultiModalConversation.call(
-                model='qwen-vl-plus',  # 使用 qwen-vl-plus（速度和准确度平衡）
+                model='qwen-vl-turbo',  # 使用 qwen-vl-turbo（速度优先，3-8 秒响应）
                 messages=messages,
-                timeout=90  # 增加到 90 秒超时
+                timeout=60  # 减少到 60 秒超时（turbo 模型更快）
             )
 
             elapsed = time.time() - start_time
