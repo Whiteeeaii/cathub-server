@@ -1,16 +1,33 @@
 package com.cathub.app.ui.profile
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
 import com.cathub.app.data.model.CreateCatRequest
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * 添加猫咪页面
@@ -22,6 +39,8 @@ fun AddCatScreen(
     onCatCreated: (Int) -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+
     var name by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("unknown") }
     var ageMonths by remember { mutableStateOf("") }
@@ -30,9 +49,55 @@ fun AddCatScreen(
     var personality by remember { mutableStateOf("") }
     var foodPreferences by remember { mutableStateOf("") }
     var feedingTips by remember { mutableStateOf("") }
-    
+    var selectedPhotos by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    // 相机权限请求
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+    }
+
+    // 拍照
+    val photoFile = remember {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        File(context.cacheDir, "cat_photo_$timeStamp.jpg")
+    }
+
+    val photoUri = remember {
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile
+        )
+    }
+
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            selectedPhotos = selectedPhotos + photoUri
+        }
+    }
+
+    // 从相册选择多张照片
+    val pickImagesLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        selectedPhotos = selectedPhotos + uris
+    }
     
     Scaffold(
         topBar = {
@@ -144,7 +209,80 @@ fun AddCatScreen(
                 minLines = 3,
                 placeholder = { Text("例如：避免乳制品；少量多餐") }
             )
-            
+
+            // 照片上传
+            Text("照片（可选）", style = MaterialTheme.typography.labelLarge)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // 拍照按钮
+                OutlinedButton(
+                    onClick = {
+                        if (hasCameraPermission) {
+                            takePictureLauncher.launch(photoUri)
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("拍照")
+                }
+
+                // 从相册选择
+                OutlinedButton(
+                    onClick = { pickImagesLauncher.launch("image/*") },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("相册")
+                }
+            }
+
+            // 显示已选择的照片
+            if (selectedPhotos.isNotEmpty()) {
+                Text("已选择 ${selectedPhotos.size} 张照片", style = MaterialTheme.typography.bodySmall)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    selectedPhotos.take(3).forEach { uri ->
+                        Box(modifier = Modifier.size(80.dp)) {
+                            Card {
+                                Image(
+                                    painter = rememberAsyncImagePainter(uri),
+                                    contentDescription = "照片",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                            IconButton(
+                                onClick = { selectedPhotos = selectedPhotos - uri },
+                                modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "删除",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                    if (selectedPhotos.size > 3) {
+                        Box(
+                            modifier = Modifier.size(80.dp),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            Text("+${selectedPhotos.size - 3}")
+                        }
+                    }
+                }
+            }
+
             // 错误提示
             if (error != null) {
                 Text(
