@@ -11,10 +11,10 @@ import java.util.concurrent.TimeUnit
  */
 object RetrofitClient {
     
-    // TODO: 替换为您的服务器地址
-    // 本地测试: http://localhost:5000/
-    // ngrok: https://your-ngrok-url.ngrok.io/
-    private const val BASE_URL = "http://10.0.2.2:5000/" // Android 模拟器访问本机
+    // Render 云端服务器地址
+    // 本地测试: http://10.0.2.2:5000/ (模拟器) 或 http://192.168.x.x:5000/ (真机)
+    // Render: https://cathub.onrender.com/
+    private const val BASE_URL = "https://cathub.onrender.com/"
     
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY

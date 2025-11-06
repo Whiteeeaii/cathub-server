@@ -16,11 +16,18 @@ app = Flask(__name__)
 CORS(app)  # 允许跨域访问
 
 # 配置
-UPLOAD_FOLDER = 'uploads'
-DATABASE = 'cathub.db'
+# 使用绝对路径，确保在 Render 上也能正常工作
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
+DATABASE = os.path.join(BASE_DIR, 'cathub.db')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
+# 确保上传文件夹存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+print(f"📁 工作目录: {BASE_DIR}")
+print(f"📁 数据库路径: {DATABASE}")
+print(f"📁 上传文件夹: {UPLOAD_FOLDER}")
 
 # ==================== 数据库初始化 ====================
 def init_db():
@@ -106,6 +113,13 @@ def save_photo(file):
         return filepath
     return None
 
+# ==================== 初始化数据库 ====================
+# 在模块加载时初始化数据库（确保 gunicorn 启动时也会执行）
+try:
+    init_db()
+except Exception as e:
+    print(f"⚠️ 数据库初始化警告: {str(e)}")
+
 # ==================== API 路由 ====================
 
 @app.route('/api/health', methods=['GET'])
@@ -117,28 +131,36 @@ def health_check():
 @app.route('/api/cats', methods=['GET'])
 def get_cats():
     """获取所有猫咪列表"""
-    conn = get_db()
-    cats = conn.execute('SELECT * FROM cats ORDER BY created_at DESC').fetchall()
-    conn.close()
-    
-    result = []
-    for cat in cats:
-        result.append({
-            'id': cat['id'],
-            'name': cat['name'],
-            'sex': cat['sex'],
-            'age_months': cat['age_months'],
-            'pattern': cat['pattern'],
-            'activity_areas': json.loads(cat['activity_areas']) if cat['activity_areas'] else [],
-            'personality': json.loads(cat['personality']) if cat['personality'] else [],
-            'food_preferences': json.loads(cat['food_preferences']) if cat['food_preferences'] else [],
-            'feeding_tips': cat['feeding_tips'],
-            'photos': json.loads(cat['photos']) if cat['photos'] else [],
-            'created_at': cat['created_at'],
-            'updated_at': cat['updated_at']
-        })
-    
-    return jsonify(result)
+    try:
+        print("📋 获取猫咪列表...")
+        conn = get_db()
+        cats = conn.execute('SELECT * FROM cats ORDER BY created_at DESC').fetchall()
+        conn.close()
+
+        result = []
+        for cat in cats:
+            result.append({
+                'id': cat['id'],
+                'name': cat['name'],
+                'sex': cat['sex'],
+                'age_months': cat['age_months'],
+                'pattern': cat['pattern'],
+                'activity_areas': json.loads(cat['activity_areas']) if cat['activity_areas'] else [],
+                'personality': json.loads(cat['personality']) if cat['personality'] else [],
+                'food_preferences': json.loads(cat['food_preferences']) if cat['food_preferences'] else [],
+                'feeding_tips': cat['feeding_tips'],
+                'photos': json.loads(cat['photos']) if cat['photos'] else [],
+                'created_at': cat['created_at'],
+                'updated_at': cat['updated_at']
+            })
+
+        print(f"✅ 返回 {len(result)} 只猫咪")
+        return jsonify(result)
+    except Exception as e:
+        print(f"❌ 获取猫咪列表失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cats/<int:cat_id>', methods=['GET'])
 def get_cat(cat_id):
@@ -169,37 +191,46 @@ def get_cat(cat_id):
 @app.route('/api/cats', methods=['POST'])
 def create_cat():
     """创建猫咪档案"""
-    data = request.json
+    try:
+        print("📝 创建猫咪档案...")
+        data = request.json
+        print(f"收到数据: {data}")
+
+        now = int(time.time())
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute('''INSERT INTO cats
+            (name, sex, age_months, pattern, activity_areas, personality,
+             food_preferences, feeding_tips, photos, embeddings, created_by, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (
+                data.get('name'),
+                data.get('sex'),
+                data.get('age_months'),
+                data.get('pattern'),
+                json.dumps(data.get('activity_areas', []), ensure_ascii=False),
+                json.dumps(data.get('personality', []), ensure_ascii=False),
+                json.dumps(data.get('food_preferences', []), ensure_ascii=False),
+                data.get('feeding_tips'),
+                json.dumps(data.get('photos', []), ensure_ascii=False),
+                json.dumps(data.get('embeddings', []), ensure_ascii=False),
+                data.get('created_by', 'anonymous'),
+                now,
+                now
+            ))
     
-    now = int(time.time())
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    cursor.execute('''INSERT INTO cats 
-        (name, sex, age_months, pattern, activity_areas, personality, 
-         food_preferences, feeding_tips, photos, embeddings, created_by, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        (
-            data.get('name'),
-            data.get('sex'),
-            data.get('age_months'),
-            data.get('pattern'),
-            json.dumps(data.get('activity_areas', []), ensure_ascii=False),
-            json.dumps(data.get('personality', []), ensure_ascii=False),
-            json.dumps(data.get('food_preferences', []), ensure_ascii=False),
-            data.get('feeding_tips'),
-            json.dumps(data.get('photos', []), ensure_ascii=False),
-            json.dumps(data.get('embeddings', []), ensure_ascii=False),
-            data.get('created_by', 'anonymous'),
-            now,
-            now
-        ))
-    
-    cat_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    
-    return jsonify({"id": cat_id, "message": "Cat created successfully"}), 201
+        cat_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        print(f"✅ 猫咪创建成功，ID: {cat_id}")
+        return jsonify({"id": cat_id, "message": "Cat created successfully"}), 201
+    except Exception as e:
+        print(f"❌ 创建猫咪失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cats/<int:cat_id>', methods=['PUT'])
 def update_cat(cat_id):
