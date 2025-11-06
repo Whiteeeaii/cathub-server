@@ -25,10 +25,12 @@ import androidx.core.content.FileProvider
 import coil.compose.rememberAsyncImagePainter
 import com.cathub.app.data.api.RetrofitClient
 import com.cathub.app.data.model.Cat
+import com.cathub.app.utils.LocationHelper
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -46,6 +48,7 @@ fun RecognitionScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val locationHelper = remember { LocationHelper(context) }
 
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var recognizedCats by remember { mutableStateOf<List<Cat>>(emptyList()) }
@@ -59,12 +62,22 @@ fun RecognitionScreen(
             ) == PackageManager.PERMISSION_GRANTED
         )
     }
+    var hasLocationPermission by remember {
+        mutableStateOf(locationHelper.hasLocationPermission())
+    }
 
     // 相机权限请求
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasCameraPermission = isGranted
+    }
+
+    // 位置权限请求
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasLocationPermission = isGranted
     }
 
     // 拍照
@@ -86,9 +99,15 @@ fun RecognitionScreen(
     ) { success ->
         if (success) {
             selectedImageUri = photoUri
+            // 请求位置权限（如果还没有）
+            if (!hasLocationPermission) {
+                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
             // 自动识别
             scope.launch {
-                recognizeCat(photoFile,
+                recognizeCat(
+                    photoFile,
+                    locationHelper,
                     onLoading = { isLoading = it },
                     onSuccess = { recognizedCats = it },
                     onError = { errorMessage = it }
@@ -103,6 +122,10 @@ fun RecognitionScreen(
     ) { uri ->
         uri?.let {
             selectedImageUri = it
+            // 请求位置权限（如果还没有）
+            if (!hasLocationPermission) {
+                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
             // 将 URI 转换为文件并识别
             scope.launch {
                 try {
@@ -111,7 +134,9 @@ fun RecognitionScreen(
                     tempFile.outputStream().use { output ->
                         inputStream?.copyTo(output)
                     }
-                    recognizeCat(tempFile,
+                    recognizeCat(
+                        tempFile,
+                        locationHelper,
                         onLoading = { isLoading = it },
                         onSuccess = { recognizedCats = it },
                         onError = { errorMessage = it }
@@ -277,17 +302,26 @@ fun RecognitionScreen(
 // 识别猫咪的函数
 private suspend fun recognizeCat(
     imageFile: File,
+    locationHelper: LocationHelper,
     onLoading: (Boolean) -> Unit,
     onSuccess: (List<Cat>) -> Unit,
     onError: (String) -> Unit
 ) {
     onLoading(true)
     try {
+        // 获取位置信息
+        val locationInfo = locationHelper.getCurrentLocation()
+
         // 调用识别 API
         val requestBody = imageFile.asRequestBody("image/*".toMediaTypeOrNull())
         val part = MultipartBody.Part.createFormData("photo", imageFile.name, requestBody)
 
-        val response = RetrofitClient.api.recognizeCat(part)
+        // 准备位置参数
+        val locationPart = locationInfo?.locationName?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val latitudePart = locationInfo?.latitude?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+        val longitudePart = locationInfo?.longitude?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+
+        val response = RetrofitClient.api.recognizeCat(part, locationPart, latitudePart, longitudePart)
 
         // 将 CatMatch 转换为 Cat
         val cats = response.matches.map { match ->

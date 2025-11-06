@@ -32,7 +32,10 @@ interface CathubApi {
     @Multipart
     @POST("api/recognize")
     suspend fun recognizeCat(
-        @Part photo: MultipartBody.Part
+        @Part photo: MultipartBody.Part,
+        @Part("location") location: okhttp3.RequestBody? = null,
+        @Part("latitude") latitude: okhttp3.RequestBody? = null,
+        @Part("longitude") longitude: okhttp3.RequestBody? = null
     ): RecognizeResponse
 
     // ========== 目击记录 ==========
@@ -56,6 +59,10 @@ interface CathubApi {
     @GET("api/feed_logs")
     suspend fun getFeedLogs(@Query("cat_id") catId: Int? = null): List<FeedLog>
     
+    // ========== 事件 ==========
+    @GET("api/events")
+    suspend fun getEvents(@Query("limit") limit: Int = 20): List<Event>
+
     // ========== 健康检查 ==========
     @GET("api/health")
     suspend fun healthCheck(): HealthCheckResponse

@@ -103,6 +103,9 @@ dependencies {
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
 
+    // Location Services
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
     // Core
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")

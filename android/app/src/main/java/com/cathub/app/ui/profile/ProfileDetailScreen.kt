@@ -17,6 +17,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * 档案详情页面
@@ -139,7 +141,19 @@ fun ProfileDetailScreen(
                                 InfoRow("花色", it)
                             }
                         }
-                        
+
+                        // 最后一次出没
+                        if (cat!!.lastSeenAt != null) {
+                            InfoSection(title = "最后一次出没") {
+                                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                                val date = Date(cat!!.lastSeenAt!!)
+                                InfoRow("时间", dateFormat.format(date))
+                                cat!!.lastSeenLocation?.let {
+                                    InfoRow("地点", it)
+                                }
+                            }
+                        }
+
                         // 活动区域
                         if (cat!!.activityAreas.isNotEmpty()) {
                             InfoSection(title = "活动区域") {

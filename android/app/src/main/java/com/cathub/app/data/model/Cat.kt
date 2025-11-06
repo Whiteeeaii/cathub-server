@@ -44,9 +44,21 @@ data class Cat(
     
     @SerializedName("created_at")
     val createdAt: Long = 0,
-    
+
     @SerializedName("updated_at")
-    val updatedAt: Long = 0
+    val updatedAt: Long = 0,
+
+    @SerializedName("last_seen_at")
+    val lastSeenAt: Long? = null,
+
+    @SerializedName("last_seen_location")
+    val lastSeenLocation: String? = null,
+
+    @SerializedName("last_seen_latitude")
+    val lastSeenLatitude: Double? = null,
+
+    @SerializedName("last_seen_longitude")
+    val lastSeenLongitude: Double? = null
 )
 
 data class Photo(
