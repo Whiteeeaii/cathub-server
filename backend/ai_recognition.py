@@ -111,9 +111,16 @@ def _describe_with_gemini(image_path, prompt):
     print(f"✅ Gemini 特征提取成功: {features.get('overall_description', '')}")
     return features
 
-def _describe_with_qwen(image_path, prompt):
-    """使用阿里云通义千问描述"""
+def _describe_with_qwen(image_path, prompt, max_retries=2):
+    """使用阿里云通义千问描述
+
+    Args:
+        image_path: 图片路径
+        prompt: 提示词
+        max_retries: 最大重试次数（默认 2 次）
+    """
     from dashscope import MultiModalConversation
+    import time
 
     # 读取图片并转为 base64
     image_base64 = encode_image_base64(image_path)
@@ -126,10 +133,39 @@ def _describe_with_qwen(image_path, prompt):
         ]
     }]
 
-    response = MultiModalConversation.call(
-        model='qwen3-vl-flash',  # 使用最新最快的 Qwen3 视觉模型
-        messages=messages
-    )
+    # 重试机制
+    for attempt in range(max_retries + 1):
+        try:
+            print(f"🤖 调用通义千问 API (尝试 {attempt + 1}/{max_retries + 1})...")
+            start_time = time.time()
+
+            response = MultiModalConversation.call(
+                model='qwen3-vl-flash',  # 使用最新最快的 Qwen3 视觉模型
+                messages=messages,
+                timeout=60  # 设置 60 秒超时
+            )
+
+            elapsed = time.time() - start_time
+            print(f"⏱️ API 响应时间: {elapsed:.2f} 秒")
+
+            if response.status_code == 200:
+                break
+            else:
+                print(f"⚠️ API 返回错误状态码: {response.status_code}")
+                if attempt < max_retries:
+                    print(f"🔄 等待 2 秒后重试...")
+                    time.sleep(2)
+                    continue
+                else:
+                    raise Exception(f"API 调用失败: {response.status_code}")
+
+        except Exception as e:
+            if attempt < max_retries:
+                print(f"⚠️ API 调用失败: {str(e)}, 等待 2 秒后重试...")
+                time.sleep(2)
+                continue
+            else:
+                raise
 
     if response.status_code == 200:
         text = response.output.choices[0].message.content[0]['text'].strip()
@@ -214,9 +250,17 @@ def _compare_with_gemini(image1_path, image2_path, prompt):
     print(f"✅ Gemini 比较完成: 相似度 {result.get('similarity', 0)}%")
     return result
 
-def _compare_with_qwen(image1_path, image2_path, prompt):
-    """使用阿里云通义千问比较"""
+def _compare_with_qwen(image1_path, image2_path, prompt, max_retries=2):
+    """使用阿里云通义千问比较
+
+    Args:
+        image1_path: 第一张图片路径
+        image2_path: 第二张图片路径
+        prompt: 提示词
+        max_retries: 最大重试次数（默认 2 次）
+    """
     from dashscope import MultiModalConversation
+    import time
 
     image1_base64 = encode_image_base64(image1_path)
     image2_base64 = encode_image_base64(image2_path)
@@ -230,10 +274,39 @@ def _compare_with_qwen(image1_path, image2_path, prompt):
         ]
     }]
 
-    response = MultiModalConversation.call(
-        model='qwen3-vl-flash',  # 使用最新最快的 Qwen3 视觉模型
-        messages=messages
-    )
+    # 重试机制
+    for attempt in range(max_retries + 1):
+        try:
+            print(f"🤖 调用通义千问比较 API (尝试 {attempt + 1}/{max_retries + 1})...")
+            start_time = time.time()
+
+            response = MultiModalConversation.call(
+                model='qwen3-vl-flash',  # 使用最新最快的 Qwen3 视觉模型
+                messages=messages,
+                timeout=60  # 设置 60 秒超时
+            )
+
+            elapsed = time.time() - start_time
+            print(f"⏱️ API 响应时间: {elapsed:.2f} 秒")
+
+            if response.status_code == 200:
+                break
+            else:
+                print(f"⚠️ API 返回错误状态码: {response.status_code}")
+                if attempt < max_retries:
+                    print(f"🔄 等待 2 秒后重试...")
+                    time.sleep(2)
+                    continue
+                else:
+                    raise Exception(f"API 调用失败: {response.status_code}")
+
+        except Exception as e:
+            if attempt < max_retries:
+                print(f"⚠️ API 调用失败: {str(e)}, 等待 2 秒后重试...")
+                time.sleep(2)
+                continue
+            else:
+                raise
 
     if response.status_code == 200:
         text = response.output.choices[0].message.content[0]['text'].strip()

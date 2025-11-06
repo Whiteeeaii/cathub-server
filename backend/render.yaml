@@ -5,7 +5,8 @@ services:
     region: singapore
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT server:app
+    # 增加 worker 超时时间到 120 秒，增加 workers 数量
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --threads 2 server:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0

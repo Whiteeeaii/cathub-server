@@ -161,12 +161,53 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-def save_photo(file):
-    """保存上传的照片，返回文件路径"""
+def save_photo(file, compress=True, max_size=(1920, 1920), quality=85):
+    """保存上传的照片，返回文件路径
+
+    Args:
+        file: 上传的文件对象
+        compress: 是否压缩图片（默认 True）
+        max_size: 最大尺寸（宽, 高），默认 1920x1920
+        quality: JPEG 质量（1-100），默认 85
+    """
     if file and allowed_file(file.filename):
         filename = f"{int(time.time() * 1000)}_{secure_filename(file.filename)}"
         filepath = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(filepath)
+
+        if compress:
+            try:
+                # 打开图片
+                img = Image.open(file)
+                original_size = img.size
+
+                # 转换为 RGB（如果是 RGBA 或其他模式）
+                if img.mode in ('RGBA', 'LA', 'P'):
+                    background = Image.new('RGB', img.size, (255, 255, 255))
+                    if img.mode == 'P':
+                        img = img.convert('RGBA')
+                    background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+                    img = background
+                elif img.mode != 'RGB':
+                    img = img.convert('RGB')
+
+                # 压缩尺寸（保持宽高比）
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+                # 保存为 JPEG 格式
+                filepath = filepath.rsplit('.', 1)[0] + '.jpg'
+                img.save(filepath, 'JPEG', quality=quality, optimize=True)
+
+                # 获取压缩后的文件大小
+                compressed_size = os.path.getsize(filepath)
+                print(f"📦 图片已压缩: {original_size} -> {img.size}, 文件大小: {compressed_size / 1024:.1f} KB")
+
+            except Exception as e:
+                print(f"⚠️ 图片压缩失败，使用原图: {str(e)}")
+                file.seek(0)  # 重置文件指针
+                file.save(filepath)
+        else:
+            file.save(filepath)
+
         return filepath
     return None
 
