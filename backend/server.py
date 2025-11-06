@@ -25,6 +25,10 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 DATABASE = os.path.join(BASE_DIR, 'cathub.db')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
+# Flask 配置
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB 最大上传大小
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 # 确保上传文件夹存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -119,19 +123,45 @@ def save_photo(file):
 def compute_image_hash(image_path):
     """计算图像的感知哈希值（用于相似度比较）"""
     try:
+        print(f"  📷 处理图像: {image_path}")
+
+        # 检查文件是否存在
+        if not os.path.exists(image_path):
+            print(f"  ❌ 文件不存在: {image_path}")
+            return None
+
+        # 打开图像
         img = Image.open(image_path)
+        print(f"  ✅ 图像大小: {img.size}, 模式: {img.mode}")
+
+        # 转换为 RGB（如果是 RGBA 或其他模式）
+        if img.mode in ('RGBA', 'LA', 'P'):
+            # 创建白色背景
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+            img = background
+
         # 转换为灰度图
         img = img.convert('L')
+
         # 缩放到 8x8
         img = img.resize((8, 8), Image.Resampling.LANCZOS)
+
         # 计算平均值
         pixels = list(img.getdata())
         avg = sum(pixels) / len(pixels)
+
         # 生成哈希
         hash_str = ''.join(['1' if p > avg else '0' for p in pixels])
+        print(f"  ✅ 哈希生成成功: {hash_str[:16]}...")
+
         return hash_str
     except Exception as e:
-        print(f"计算图像哈希失败: {str(e)}")
+        print(f"  ❌ 计算图像哈希失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def hamming_distance(hash1, hash2):
@@ -342,26 +372,40 @@ def upload_cat_photo(cat_id):
 @app.route('/api/recognize', methods=['POST'])
 def recognize_cat():
     """识别猫咪"""
+    temp_filepath = None
     try:
+        print("🔍 开始识别猫咪...")
+
         if 'photo' not in request.files:
+            print("❌ 没有收到照片文件")
             return jsonify({"error": "No photo provided"}), 400
 
         file = request.files['photo']
+        print(f"📸 收到文件: {file.filename}, 大小: {file.content_length if hasattr(file, 'content_length') else 'unknown'}")
 
         # 保存临时文件
         temp_filepath = save_photo(file)
         if not temp_filepath:
+            print("❌ 文件类型不支持")
             return jsonify({"error": "Invalid file type"}), 400
 
+        print(f"✅ 临时文件已保存: {temp_filepath}")
+
         # 计算上传图片的哈希
+        print("🔢 计算图像哈希...")
         upload_hash = compute_image_hash(temp_filepath)
         if not upload_hash:
+            print("❌ 图像处理失败")
             return jsonify({"error": "Failed to process image"}), 500
 
+        print(f"✅ 图像哈希: {upload_hash[:16]}...")
+
         # 获取所有猫咪及其照片
+        print("📊 查询数据库...")
         conn = get_db()
         cursor = conn.cursor()
         cats = cursor.execute('SELECT * FROM cats').fetchall()
+        print(f"📊 找到 {len(cats)} 只猫咪")
 
         matches = []
 
@@ -383,6 +427,7 @@ def recognize_cat():
 
             # 如果相似度超过阈值，添加到匹配列表
             if max_similarity > 30:  # 30% 相似度阈值
+                print(f"✅ 匹配: {cat['name']} (相似度: {max_similarity:.2f}%)")
                 matches.append({
                     'id': cat['id'],
                     'name': cat['name'],
@@ -405,11 +450,15 @@ def recognize_cat():
         # 按相似度排序
         matches.sort(key=lambda x: x['similarity'], reverse=True)
 
+        print(f"🎯 识别完成，找到 {len(matches)} 个匹配")
+
         # 删除临时文件
-        try:
-            os.remove(temp_filepath)
-        except:
-            pass
+        if temp_filepath:
+            try:
+                os.remove(temp_filepath)
+                print(f"🗑️ 临时文件已删除")
+            except Exception as e:
+                print(f"⚠️ 删除临时文件失败: {str(e)}")
 
         return jsonify({
             "matches": matches,
@@ -420,6 +469,14 @@ def recognize_cat():
         print(f"❌ 识别失败: {str(e)}")
         import traceback
         traceback.print_exc()
+
+        # 清理临时文件
+        if temp_filepath:
+            try:
+                os.remove(temp_filepath)
+            except:
+                pass
+
         return jsonify({"error": str(e)}), 500
 
 # ---------- 目击记录 API ----------
