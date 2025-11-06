@@ -17,11 +17,15 @@ import hashlib
 
 # 导入 AI 识别模块
 try:
-    from ai_recognition import is_ai_available, recognize_cat_from_database, describe_cat_features
+    from ai_recognition import is_ai_available, recognize_cat_from_database, describe_cat_features, get_ai_provider
     AI_ENABLED = is_ai_available()
-    print(f"🤖 AI 识别功能: {'已启用' if AI_ENABLED else '未启用（需要配置 GEMINI_API_KEY）'}")
+    if AI_ENABLED:
+        print(f"🤖 AI 识别功能: 已启用 (服务商: {get_ai_provider()})")
+    else:
+        print(f"🤖 AI 识别功能: 未启用（需要配置 API Key）")
 except ImportError as e:
     AI_ENABLED = False
+    get_ai_provider = lambda: None
     print(f"⚠️ AI 识别模块导入失败: {str(e)}")
 
 app = Flask(__name__)
@@ -384,9 +388,17 @@ def recognize_cat():
     temp_filepath = None
     try:
         # 检查是否使用 AI 识别
-        use_ai = request.form.get('use_ai', 'false').lower() == 'true'
+        # 默认：如果 AI 可用，就使用 AI；除非明确指定 use_ai=false
+        use_ai_param = request.form.get('use_ai', 'auto').lower()
+
+        if use_ai_param == 'auto':
+            use_ai = AI_ENABLED  # AI 可用时自动使用
+        else:
+            use_ai = use_ai_param == 'true'
 
         print(f"🔍 开始识别猫咪... (方法: {'AI' if use_ai and AI_ENABLED else '传统哈希'})")
+        if use_ai and AI_ENABLED:
+            print(f"🤖 使用 AI 服务: {get_ai_provider()}")
 
         if 'photo' not in request.files:
             print("❌ 没有收到照片文件")
