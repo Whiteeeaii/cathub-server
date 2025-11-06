@@ -12,7 +12,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +36,7 @@ import java.util.*
 
 /**
  * 猫咪识别页面
- * 支持拍照或从相册选择照片进行识别
+ * 进入页面后自动启动相机拍照识别
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,38 +112,25 @@ fun RecognitionScreen(
                     onError = { errorMessage = it }
                 )
             }
+        } else {
+            // 用户取消拍照，返回上一页
+            onNavigateBack()
         }
     }
 
-    // 从相册选择
-    val pickImageLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            selectedImageUri = it
-            // 请求位置权限（如果还没有）
-            if (!hasLocationPermission) {
-                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-            // 将 URI 转换为文件并识别
-            scope.launch {
-                try {
-                    val inputStream = context.contentResolver.openInputStream(it)
-                    val tempFile = File(context.cacheDir, "temp_cat_photo.jpg")
-                    tempFile.outputStream().use { output ->
-                        inputStream?.copyTo(output)
-                    }
-                    recognizeCat(
-                        tempFile,
-                        locationHelper,
-                        onLoading = { isLoading = it },
-                        onSuccess = { recognizedCats = it },
-                        onError = { errorMessage = it }
-                    )
-                } catch (e: Exception) {
-                    errorMessage = "读取图片失败: ${e.message}"
-                }
-            }
+    // 进入页面时自动启动相机
+    LaunchedEffect(Unit) {
+        if (hasCameraPermission) {
+            takePictureLauncher.launch(photoUri)
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    // 监听相机权限变化，获得权限后立即启动相机
+    LaunchedEffect(hasCameraPermission) {
+        if (hasCameraPermission && selectedImageUri == null) {
+            takePictureLauncher.launch(photoUri)
         }
     }
 
@@ -173,40 +159,29 @@ fun RecognitionScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 说明文字
-            Text(
-                text = "拍照或选择照片识别猫咪",
-                style = MaterialTheme.typography.titleMedium
-            )
+            if (selectedImageUri == null && !isLoading) {
+                Text(
+                    text = "正在启动相机...",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
 
-            // 操作按钮
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // 拍照按钮
+            // 重新拍照按钮（仅在已有照片时显示）
+            if (selectedImageUri != null) {
                 Button(
                     onClick = {
-                        if (hasCameraPermission) {
-                            takePictureLauncher.launch(photoUri)
-                        } else {
-                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                        }
+                        // 清空当前结果
+                        selectedImageUri = null
+                        recognizedCats = emptyList()
+                        errorMessage = null
+                        // 重新启动相机
+                        takePictureLauncher.launch(photoUri)
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.CameraAlt, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("拍照")
-                }
-
-                // 从相册选择
-                OutlinedButton(
-                    onClick = { pickImageLauncher.launch("image/*") },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("相册")
+                    Text("重新拍照")
                 }
             }
 
